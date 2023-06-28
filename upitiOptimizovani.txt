@@ -1,0 +1,170 @@
+1.###################################################################################################
+Prikazati broj radova i prosecan broj milja po radu za svaki grad u radijus od 500km od NYC, 
+sortirani u opadajucem redosledu.
+=====================================================================================================
+db.roads.aggregate([
+    {
+        $geoNear: {
+            near: {
+                type: "Point",
+                coordinates: [-74.0060, 40.7128]   //NYC
+            },
+            distanceField: "distance",
+            spherical: true,
+            maxDistance: 500000
+        }
+    },
+    {
+        $group: {
+            _id: {"state": "$State", "county": "$County", "city": "$City"},
+            "state": {"$first": "$State"},
+            "county": {"$first": "$County"},
+            "city": {"$first": "$City"},
+            ccount: { $sum: 1},
+            AverageDistance: {$avg: "$Distance(mi)"}
+        }
+    },
+    {
+        $sort: {
+            ccount: -1
+        }
+    },
+    {$project: {
+        "_id": 1,
+        "state": 1,
+        "county": 1,
+        "city": 1,
+        ccount: { $round: ["$ccount", 1] },
+        AverageDistance: { $round: ["$AverageDistance", 1] }
+        
+    }}
+])
+2.###################################################################################################
+U kojoj saveznoj državi, se najviše izvodilo radova po kategorijama, po godinama? 
+*****************************************************************************************************
+11sek
+=====================================================================================================
+db.roads.aggregate([
+    {$group: {
+        "_id": {"year": "$Start_year","cat": "$Severity"},
+        "year": {"$first": "$Start_year"},
+        "cat": {"$first": "$Severity"},
+        "state": {"$first": "$State"},
+        "avg_work": {$avg: "$Days_worked"},
+        "max_work": {$max: "$Days_worked"}        
+        }
+    },
+    {$sort: {
+        "_id": 1
+    }},
+    {$project: {
+        "_id": 0,
+        "year": 1,
+        "cat": 1,
+        "state": 1,
+        avg_work: { $round: ["$avg_work", 1] },
+        "max_work": 1
+        
+    }}
+])
+3.###################################################################################################
+Koje je prosečno vreme trajanja radova u blizini pešačkog prelaza, za svaki grad, po okrugu, po saveznoj državi? 
+*****************************************************************************************************
+7sec
+=====================================================================================================
+db.roads.aggregate([
+    {$match: {
+        "Crossing": true
+    }},
+    {$group: {
+        "_id": {"state": "$State", "county":"$County", "city": "$City"},
+        "state": {"$first": "$State"},
+        "county": {"$first": "$County"},
+        "city": {"$first": "$City"},
+        "crossing": {"$first": "$Crossing"},
+        "avg_distance": {$avg: "$Distance(mi)"},
+        "avg_work": {$avg: "$Days_worked"}
+        }
+    },
+    {$sort: {
+        "_id": 1
+    }},
+    {$project: {
+        "_id": 0,
+        "state": 1,
+        "county": 1,
+        "city": 1,
+        "crossing": 1,
+        avg_distance : { $round: ["$avg_distance", 1] },
+        avg_days_work: { $round: ["$avg_work", 1] }
+    }}
+])
+4.###################################################################################################
+Pronaci sifru radova koji su odradili najvise milja u tom gradu, po okrugu, po saveznoj drzavi. 
+*****************************************************************************************************
+14sec
+=====================================================================================================
+db.roads.aggregate([
+    {$group: {
+        "_id": {"state": "$State", "county":"$County", "city": "$City"},
+        "state": {"$first": "$State"},
+        "county": {"$first": "$County"},
+        "city": {"$first": "$City"},
+        "ID": {"$first": "$ID"},
+        "max_miles": {$max: "$Distance(mi)"},
+        "days_worked": {"$first": "$Days_worked"}
+    }
+    },
+    {$sort: {
+        "_id": 1
+    }},
+    {$project: {
+        "_id": 0,
+        "state": 1,
+        "county": 1,
+        "city": 1,
+        "ID": 1,
+        "max_miles": 1,
+        "days_worked": 1
+        }}
+])
+5.###################################################################################################
+Koja je ukupna dužina radova na autoputu za grad?
+*****************************************************************************************************
+4sec
+=====================================================================================================
+db.roads.aggregate([
+    {$match: {
+        "Street": { $regex: /Highway/ }
+    }},
+    {$group: {
+        "_id": {"state": "$State", "county":"$County", "city": "$City"},
+        "state": {"$first": "$State"},
+        "county": {"$first": "$County"},
+        "city": {"$first": "$City"},
+        "street": {"$first": "$Street"},
+        //"avg_miles": {$avg: "$Distance(mi)"},
+        "sum_miles": {$sum: "$Distance(mi)"},
+        "avg_days_worked": {$avg: "$Days_worked"}
+    }
+    },
+    
+    {$sort: {
+        "_id": 1
+    }},
+    
+    {$project: {
+        "_id": 0,
+        "state": 1,
+        "county": 1,
+        "city": 1,
+        "street": 1,
+        "sum_miles": { $round: ["$sum_miles", 1] },
+        "avg_days_worked": { $round: ["$avg_days_worked", 1] }
+        }}
+])
+=====================================================================================================
+
+
+
+
